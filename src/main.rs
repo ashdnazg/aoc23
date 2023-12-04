@@ -4,12 +4,66 @@ use std::{collections::HashMap, fs};
 fn main() {
     // day01();
     // day02();
-    day03();
+    // day03();
+    day04();
+}
+
+fn day04() {
+    let contents = fs::read_to_string("aoc04.txt").unwrap();
+    let matches: Vec<u32> = contents
+        .lines()
+        .map(|line| {
+            line.trim()
+                .split_once(": ")
+                .unwrap()
+                .1
+                .split_once(" | ")
+                .unwrap()
+        })
+        .map(|(numbers_str, winning_numbers_str)| {
+            (collect_numbers(numbers_str) & collect_numbers(winning_numbers_str)).count_ones()
+        })
+        .collect();
+
+    let result: u64 = matches
+        .iter()
+        .map(|&game_matches| {
+            if game_matches == 0 {
+                0
+            } else {
+                1 << (game_matches - 1)
+            }
+        })
+        .sum();
+
+    println!("{result}");
+
+    let mut total_won: Vec<u64> = Vec::new();
+    total_won.resize(matches.len(), 1);
+
+    for (i, &game_matches) in matches.iter().enumerate().rev() {
+        for j in 1..=(game_matches as usize) {
+            total_won[i] += total_won[i + j];
+        }
+    }
+
+    let result2: u64 = total_won.iter().sum();
+
+    println!("{result2}");
+}
+
+fn collect_numbers(s: &str) -> u128 {
+    s.split_whitespace()
+        .map(|num_str| num_str.parse::<u8>().unwrap())
+        .fold(0, |acc, num| acc | (1 << num))
 }
 
 fn day03() {
     let contents = fs::read_to_string("aoc03.txt").unwrap();
-    let grid: Vec<Vec<char>> = contents.lines().map(|line| line.chars().collect()).collect();
+    let grid: Vec<Vec<char>> = contents
+        .lines()
+        .map(|line| line.chars().collect())
+        .collect();
     let mut number_positions: HashMap<(usize, usize), u64> = HashMap::new();
     for (y, row) in grid.iter().enumerate() {
         let mut num = 0;
@@ -20,14 +74,14 @@ fn day03() {
                 num *= 10;
                 num += digit as u64;
             } else {
-                for i in (x-num_length)..x {
+                for i in (x - num_length)..x {
                     number_positions.insert((i, y), num);
                 }
                 num = 0;
                 num_length = 0;
             }
         }
-        for i in (row.len()-num_length)..row.len() {
+        for i in (row.len() - num_length)..row.len() {
             number_positions.insert((i, y), num);
         }
     }
@@ -168,9 +222,7 @@ fn day02() {
                     cube_set
                         .split(", ")
                         .map(|count_and_cube| count_and_cube.split_once(" ").unwrap())
-                        .map(|(count_str, cube)| {
-                            (cube.to_owned(), count_str.parse().unwrap())
-                        })
+                        .map(|(count_str, cube)| (cube.to_owned(), count_str.parse().unwrap()))
                         .collect()
                 })
                 .collect()
@@ -182,13 +234,11 @@ fn day02() {
         .enumerate()
         .filter(|(_, cube_sets)| {
             cube_sets.iter().all(|cube_map| {
-                cube_map.iter().all(|(color, &count)| {
-                    match color.as_str() {
-                        "red" => count <= 12,
-                        "green" => count <= 13,
-                        "blue" => count <= 14,
-                        _ => false,
-                    }
+                cube_map.iter().all(|(color, &count)| match color.as_str() {
+                    "red" => count <= 12,
+                    "green" => count <= 13,
+                    "blue" => count <= 14,
+                    _ => false,
                 })
             })
         })
@@ -204,7 +254,9 @@ fn day02() {
                 .iter()
                 .flat_map(|y| y.iter())
                 .fold(HashMap::<String, u64>::new(), |mut acc, (color, &count)| {
-                    acc.entry(color.clone()).and_modify(|e| { *e = count.max(*e) }).or_insert(count);
+                    acc.entry(color.clone())
+                        .and_modify(|e| *e = count.max(*e))
+                        .or_insert(count);
 
                     acc
                 })
