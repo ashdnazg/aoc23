@@ -1,11 +1,143 @@
 #![allow(dead_code)]
-use std::{collections::HashMap, fs};
+use std::{collections::HashMap, fs, ops::Range};
 
 fn main() {
     // day01();
     // day02();
     // day03();
-    day04();
+    // day04();
+    day05();
+}
+
+#[derive(Debug)]
+struct MapEntry {
+    dst_start: u64,
+    src_start: u64,
+    length: u64,
+}
+
+fn day05() {
+    let contents = fs::read_to_string("aoc05.txt").unwrap();
+    let (seeds_str, maps_str) = contents.split_once("\n\n").unwrap();
+    let seeds: Vec<u64> = seeds_str
+        .trim()
+        .split_once(": ")
+        .unwrap()
+        .1
+        .split(" ")
+        .map(|num_str| num_str.parse().unwrap())
+        .collect();
+
+    let mut maps: Vec<Vec<MapEntry>> = maps_str
+        .split("\n\n")
+        .map(|map_str| {
+            map_str
+                .lines()
+                .skip(1)
+                .map(|entry_str| entry_str.trim().split_once(" ").unwrap())
+                .map(|(dst_start_str, rest_str)| {
+                    (
+                        dst_start_str.parse().unwrap(),
+                        rest_str.split_once(" ").unwrap(),
+                    )
+                })
+                .map(|(dst_start, (src_start_str, length_str))| MapEntry {
+                    dst_start,
+                    src_start: src_start_str.parse().unwrap(),
+                    length: length_str.parse().unwrap(),
+                })
+                .collect()
+        })
+        .collect();
+
+    maps.iter_mut()
+        .for_each(|map| map.sort_by_key(|entry| entry.src_start));
+
+    let result = seeds
+        .iter()
+        .map(|&seed| {
+            maps.iter().fold(seed, |src_num, map| {
+                let index = match map.binary_search_by_key(&src_num, |entry| entry.src_start) {
+                    Ok(i) => i,
+                    Err(0) => return src_num,
+                    Err(i) => i - 1,
+                };
+                let entry = &map[index];
+                if src_num - entry.src_start >= entry.length {
+                    src_num
+                } else {
+                    src_num - entry.src_start + entry.dst_start
+                }
+            })
+        })
+        .min()
+        .unwrap();
+
+    println!("{result}");
+
+    let ranges: Vec<Range<u64>> = seeds
+        .chunks(2)
+        .map(|chunk| chunk[0]..(chunk[0] + chunk[1]))
+        .collect();
+
+    let result2 = ranges
+        .iter()
+        .map(|range| {
+            maps.iter()
+                .fold(vec![range.clone()], |acc, map| {
+                    acc.iter()
+                        .flat_map(|subrange| convert(subrange, map))
+                        .collect()
+                })
+                .iter()
+                .map(|range| range.start)
+                .min()
+                .unwrap()
+        })
+        .min()
+        .unwrap();
+
+    println!("{result2}");
+}
+
+fn convert(range: &Range<u64>, map: &[MapEntry]) -> Vec<Range<u64>> {
+    let mut index = match map.binary_search_by_key(&range.start, |entry| entry.src_start) {
+        Ok(i) => i,
+        Err(0) => 0,
+        Err(i) => i - 1,
+    };
+
+    let mut remaining_range = range.clone();
+    let mut mapped_ranges = vec![];
+
+    while !remaining_range.is_empty() {
+        if map.len() <= index || map[index].src_start >= remaining_range.end {
+            mapped_ranges.push(remaining_range.clone());
+            break;
+        }
+        let entry = &map[index];
+
+        if remaining_range.start > (entry.src_start + entry.length) {
+            index += 1;
+            continue;
+        }
+
+        if remaining_range.start < entry.src_start {
+            mapped_ranges.push(remaining_range.start..entry.src_start);
+        }
+
+        let intersection_start = entry.src_start.max(remaining_range.start);
+        let intersection_end = (entry.src_start + entry.length).min(remaining_range.end);
+        let mapped_start = intersection_start - entry.src_start + entry.dst_start;
+        let mapped_end = intersection_end - entry.src_start + entry.dst_start;
+
+        mapped_ranges.push(mapped_start..mapped_end);
+
+        remaining_range.start = intersection_end;
+        index += 1;
+    }
+
+    mapped_ranges
 }
 
 fn day04() {
