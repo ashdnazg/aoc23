@@ -1,12 +1,13 @@
 #![allow(dead_code)]
-use std::{collections::HashMap, fs, ops::Range};
+use std::{collections::HashMap, fs, iter::zip, ops::Range};
 
 fn main() {
     // day01();
     // day02();
     // day03();
     // day04();
-    day05();
+    // day05();
+    day06();
 }
 
 #[derive(Debug)]
@@ -14,6 +15,44 @@ struct MapEntry {
     dst_start: u64,
     src_start: u64,
     length: u64,
+}
+
+fn day06() {
+    let contents = fs::read_to_string("aoc06.txt").unwrap();
+    let mut data_iter = contents.lines().map(|line| {
+        line.split_whitespace()
+            .skip(1)
+            .map(|num_str| num_str.parse().unwrap())
+            .collect::<Vec<u64>>()
+    });
+    let times = data_iter.next().unwrap();
+    let distances = data_iter.next().unwrap();
+
+    let result: u64 = zip(&times, &distances)
+        .map(|(&t, &d)| {
+            let tf = t as f64;
+            let df = d as f64;
+            let s = (tf * tf - 4.0 * df).sqrt();
+            let x1 = (tf - s) * 0.5;
+            let x2 = (tf + s) * 0.5;
+            ((x2 - 0.001).floor() - (x1 + 0.001).ceil()) as u64 + 1
+        })
+        .product();
+
+    println!("{}", result);
+
+    let tf = times
+        .iter()
+        .fold(0, |acc, n| acc * 10u64.pow(n.ilog10() + 1) + n) as f64;
+    let df = distances
+        .iter()
+        .fold(0, |acc, n| acc * 10u64.pow(n.ilog10() + 1) + n) as f64;
+    let s = (tf * tf - 4.0 * df).sqrt();
+    let x1 = (tf - s) * 0.5;
+    let x2 = (tf + s) * 0.5;
+    let result2 = ((x2 - 0.001).floor() - (x1 + 0.001).ceil()) as u64 + 1;
+
+    println!("{}", result2);
 }
 
 fn day05() {
