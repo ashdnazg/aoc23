@@ -7,7 +7,110 @@ fn main() {
     // day03();
     // day04();
     // day05();
-    day06();
+    // day06();
+    day07();
+}
+
+fn day07() {
+    let contents = fs::read_to_string("aoc07.txt").unwrap();
+    let mut cards_vec: Vec<(u32, u64)> = contents
+        .lines()
+        .map(|line| {
+            let (cards_str, bid_str) = line.trim().split_once(" ").unwrap();
+            let mut card_counts = vec![0; 15];
+            let mut set_counts = vec![0; 6];
+            let mut cards = 0;
+            for c in cards_str.chars() {
+                let value = match c {
+                    'T' => 10,
+                    'J' => 11,
+                    'Q' => 12,
+                    'K' => 13,
+                    'A' => 14,
+                    _ => c.to_digit(10).unwrap(),
+                };
+
+                cards = (cards << 4) + value;
+                if card_counts[value as usize] > 0 {
+                    set_counts[card_counts[value as usize]] -= 1;
+                }
+                card_counts[value as usize] += 1;
+                set_counts[card_counts[value as usize]] += 1;
+            }
+
+            for (i, count) in set_counts.iter().skip(2).enumerate() {
+                cards += count << (20 + i * 2)
+            }
+
+            (cards, bid_str.parse().unwrap())
+        })
+        .collect();
+
+    cards_vec.sort_by_key(|&(cards, _)| cards);
+
+    let result: u64 = cards_vec
+        .iter()
+        .enumerate()
+        .map(|(i, (_, bid))| (i + 1) as u64 * bid)
+        .sum();
+
+    println!("{result}");
+
+    let mut cards_vec2: Vec<(u32, u64)> = contents
+        .lines()
+        .map(|line| {
+            let (cards_str, bid_str) = line.trim().split_once(" ").unwrap();
+            let mut card_counts = vec![0; 15];
+            let mut set_counts = vec![5, 0, 0, 0, 0, 0];
+            let mut joker_count = 0;
+            let mut cards = 0;
+            for c in cards_str.chars() {
+                let value = match c {
+                    'T' => 10,
+                    'J' => 1,
+                    'Q' => 12,
+                    'K' => 13,
+                    'A' => 14,
+                    _ => c.to_digit(10).unwrap(),
+                };
+
+                cards = (cards << 4) + value;
+
+                if c == 'J' {
+                    joker_count += 1;
+                    continue;
+                }
+
+                set_counts[card_counts[value as usize]] -= 1;
+                card_counts[value as usize] += 1;
+                set_counts[card_counts[value as usize]] += 1;
+            }
+            let top_count = set_counts
+                .iter()
+                .enumerate()
+                .rfind(|&(_, &count)| count > 0)
+                .unwrap()
+                .0;
+            set_counts[top_count] -= 1;
+            set_counts[top_count + joker_count] += 1;
+
+            for (i, count) in set_counts.iter().skip(2).enumerate() {
+                cards += count << (20 + i * 2)
+            }
+
+            (cards, bid_str.parse().unwrap())
+        })
+        .collect();
+
+    cards_vec2.sort_by_key(|&(cards, _)| cards);
+
+    let result2: u64 = cards_vec2
+        .iter()
+        .enumerate()
+        .map(|(i, (_, bid))| (i + 1) as u64 * bid)
+        .sum();
+
+    println!("{result2}");
 }
 
 #[derive(Debug)]
