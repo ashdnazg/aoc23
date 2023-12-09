@@ -8,7 +8,93 @@ fn main() {
     // day04();
     // day05();
     // day06();
-    day07();
+    // day07();
+    // day08();
+    day09();
+}
+
+fn day09() {
+    let contents = fs::read_to_string("aoc09.txt").unwrap();
+    let values: Vec<Vec<i64>> = contents
+        .lines()
+        .map(|l| {
+            l.trim()
+                .split_whitespace()
+                .map(|n| n.parse().unwrap())
+                .collect()
+        })
+        .collect();
+
+    let result: i64 = values.iter().map(|v| extrapolate(v)).sum();
+
+    println!("{result}");
+
+    let result2: i64 = values
+        .iter()
+        .map(|v| extrapolate(&v.iter().rev().cloned().collect::<Vec<_>>()))
+        .sum();
+
+    println!("{result2}");
+}
+
+fn extrapolate(values: &[i64]) -> i64 {
+    if values.iter().all(|&v| v == 0) {
+        return 0;
+    }
+
+    let diffs: Vec<i64> = values.windows(2).map(|pair| pair[1] - pair[0]).collect();
+
+    values.last().unwrap() + extrapolate(&diffs)
+}
+
+fn day08() {
+    let contents = fs::read_to_string("aoc08.txt").unwrap();
+    let (instructions_str, connections_str) = contents.split_once("\n\n").unwrap();
+    let connections: HashMap<&str, (&str, &str)> = connections_str
+        .lines()
+        .map(|line| line.trim_end_matches(')').split_once(" = (").unwrap())
+        .map(|(parent, children_str)| (parent, children_str.split_once(", ").unwrap()))
+        .collect();
+
+    let instructions: Vec<char> = instructions_str.chars().collect();
+
+    {
+        let mut current_node = "AAA";
+        let mut steps = 0;
+        while current_node != "ZZZ" {
+            current_node = match instructions[steps % instructions.len()] {
+                'L' => connections[current_node].0,
+                'R' => connections[current_node].1,
+                _ => unreachable!(),
+            };
+            steps += 1;
+        }
+        println!("{steps}");
+    }
+
+    {
+        let result = connections
+            .keys()
+            .filter(|&node| node.ends_with('A'))
+            .map(|&start| {
+                let mut current_node = start;
+                let mut steps = 0;
+                while !current_node.ends_with('Z') {
+                    current_node = match instructions[steps % instructions.len()] {
+                        'L' => connections[current_node].0,
+                        'R' => connections[current_node].1,
+                        _ => unreachable!(),
+                    };
+                    steps += 1;
+                }
+
+                steps as u64
+            })
+            .reduce(num::integer::lcm)
+            .unwrap();
+
+        println!("{result}");
+    }
 }
 
 fn day07() {
@@ -16,9 +102,9 @@ fn day07() {
     let mut cards_vec: Vec<(u32, u64)> = contents
         .lines()
         .map(|line| {
-            let (cards_str, bid_str) = line.trim().split_once(" ").unwrap();
-            let mut card_counts = vec![0; 15];
-            let mut set_counts = vec![0; 6];
+            let (cards_str, bid_str) = line.trim().split_once(' ').unwrap();
+            let mut card_counts = [0; 15];
+            let mut set_counts = [0; 6];
             let mut cards = 0;
             for c in cards_str.chars() {
                 let value = match c {
@@ -59,9 +145,9 @@ fn day07() {
     let mut cards_vec2: Vec<(u32, u64)> = contents
         .lines()
         .map(|line| {
-            let (cards_str, bid_str) = line.trim().split_once(" ").unwrap();
-            let mut card_counts = vec![0; 15];
-            let mut set_counts = vec![5, 0, 0, 0, 0, 0];
+            let (cards_str, bid_str) = line.trim().split_once(' ').unwrap();
+            let mut card_counts = [0; 15];
+            let mut set_counts = [5, 0, 0, 0, 0, 0];
             let mut joker_count = 0;
             let mut cards = 0;
             for c in cards_str.chars() {
@@ -166,7 +252,7 @@ fn day05() {
         .split_once(": ")
         .unwrap()
         .1
-        .split(" ")
+        .split(' ')
         .map(|num_str| num_str.parse().unwrap())
         .collect();
 
@@ -176,11 +262,11 @@ fn day05() {
             map_str
                 .lines()
                 .skip(1)
-                .map(|entry_str| entry_str.trim().split_once(" ").unwrap())
+                .map(|entry_str| entry_str.trim().split_once(' ').unwrap())
                 .map(|(dst_start_str, rest_str)| {
                     (
                         dst_start_str.parse().unwrap(),
-                        rest_str.split_once(" ").unwrap(),
+                        rest_str.split_once(' ').unwrap(),
                     )
                 })
                 .map(|(dst_start, (src_start_str, length_str))| MapEntry {
@@ -365,7 +451,7 @@ fn day03() {
 
     for (y, row) in grid.iter().enumerate() {
         for (x, &c) in row.iter().enumerate() {
-            if c.is_digit(10) || c == '.' {
+            if c.is_ascii_digit() || c == '.' {
                 continue;
             }
             {
@@ -495,7 +581,7 @@ fn day02() {
                 .map(|cube_set| {
                     cube_set
                         .split(", ")
-                        .map(|count_and_cube| count_and_cube.split_once(" ").unwrap())
+                        .map(|count_and_cube| count_and_cube.split_once(' ').unwrap())
                         .map(|(count_str, cube)| (cube.to_owned(), count_str.parse().unwrap()))
                         .collect()
                 })
@@ -549,13 +635,13 @@ fn day01() {
         .map(|line| {
             let first_digit = line
                 .chars()
-                .find(|c| c.is_digit(10))
+                .find(|c| c.is_ascii_digit())
                 .unwrap()
                 .to_digit(10)
                 .unwrap() as u64;
             let last_digit = line
                 .chars()
-                .rfind(|c| c.is_digit(10))
+                .rfind(|c| c.is_ascii_digit())
                 .unwrap()
                 .to_digit(10)
                 .unwrap() as u64;
@@ -582,13 +668,13 @@ fn day01() {
         .map(|line| {
             let first_digit = line
                 .chars()
-                .find(|c| c.is_digit(10))
+                .find(|c| c.is_ascii_digit())
                 .unwrap()
                 .to_digit(10)
                 .unwrap() as u64;
             let last_digit = line
                 .chars()
-                .rfind(|c| c.is_digit(10))
+                .rfind(|c| c.is_ascii_digit())
                 .unwrap()
                 .to_digit(10)
                 .unwrap() as u64;
