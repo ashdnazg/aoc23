@@ -1,5 +1,12 @@
 #![allow(dead_code)]
-use std::{collections::HashMap, fs, iter::zip, ops::Range};
+use std::{
+    collections::{HashMap, HashSet},
+    fs,
+    iter::zip,
+    ops::Range,
+};
+
+use itertools::Itertools;
 
 fn main() {
     // day01();
@@ -10,19 +17,118 @@ fn main() {
     // day06();
     // day07();
     // day08();
-    day09();
+    // day09();
+    day10();
+}
+fn day10() {
+    let contents = fs::read_to_string("aoc10.txt").unwrap();
+    let mut grid: Vec<Vec<char>> = contents.lines().map(|l| l.chars().collect()).collect();
+
+    let mut start_x: i64 = 0;
+    let mut start_y: i64 = 0;
+    for (i, j) in (0..grid.len()).cartesian_product(0..grid[0].len()) {
+        if grid[i][j] == 'S' {
+            start_x = j as i64;
+            start_y = i as i64;
+            break;
+        }
+    }
+
+    let mut first_x: i64 = 0;
+    let mut first_y: i64 = 0;
+
+    for (dx, dy) in [(1, 0), (-1, 0), (0, 1), (0, -1)] {
+        let connections = get_connections(grid[(start_y + dy) as usize][(start_x + dx) as usize]);
+        let reverse_dir = (-dx, -dy);
+        if !connections.contains(&reverse_dir) {
+            continue;
+        }
+        first_x = start_x + dx;
+        first_y = start_y + dy;
+
+        break;
+    }
+
+    let mut steps = 1;
+    let mut x = first_x;
+    let mut y = first_y;
+    let mut last_dx = first_x - start_x;
+    let mut last_dy = first_y - start_y;
+
+    let mut loop_coords: HashSet<(i64, i64)> = [(start_x, start_y)].into_iter().collect();
+
+    while !loop_coords.contains(&(x, y)) {
+        loop_coords.insert((x, y));
+        let connections = get_connections(grid[y as usize][x as usize]);
+        let reverse_dir = (-last_dx, -last_dy);
+        (last_dx, last_dy) = connections.into_iter().find(|&d| d != reverse_dir).unwrap();
+        x += last_dx;
+        y += last_dy;
+
+        steps += 1;
+    }
+
+    grid[start_y as usize][start_x as usize] =
+        get_letter(&[(-last_dx, -last_dy), (first_x - start_x, first_y - start_y)]);
+
+    let result = steps / 2;
+
+    println!("{result}");
+
+    let mut contained_count = 0;
+
+    for coord_sum in 0..(grid.len() + grid[0].len() - 2) {
+        let mut flips_encountered = 0;
+        for i in 0..=coord_sum {
+            let j = coord_sum - i;
+            let is_loop = loop_coords.contains(&(i as i64, j as i64));
+
+            if !is_loop && flips_encountered % 2 == 1 {
+                contained_count += 1;
+            }
+
+            if is_loop && grid[j][i] != 'F' && grid[j][i] != 'J' {
+                flips_encountered += 1;
+            }
+        }
+    }
+
+    println!("{contained_count}");
+}
+
+fn get_connections(c: char) -> [(i64, i64); 2] {
+    match c {
+        '|' => [(0, 1), (0, -1)],
+        '-' => [(1, 0), (-1, 0)],
+        'L' => [(1, 0), (0, -1)],
+        'J' => [(-1, 0), (0, -1)],
+        '7' => [(-1, 0), (0, 1)],
+        'F' => [(1, 0), (0, 1)],
+        '.' => [(0, 0), (0, 0)],
+        'S' => [(0, 0), (0, 0)],
+        _ => unreachable!(),
+    }
+}
+
+fn get_letter(connections: &[(i64, i64); 2]) -> char {
+    let mut copy = *connections;
+    copy.sort();
+    match copy {
+        [(0, -1), (0, 1)] => '|',
+        [(-1, 0), (1, 0)] => '-',
+        [(0, -1), (1, 0)] => 'L',
+        [(0, -1), (-1, 0)] => 'J',
+        [(-1, 0), (0, 1)] => '7',
+        [(0, 1), (1, 0)] => 'F',
+        _ => unreachable!(),
+    }
 }
 
 fn day09() {
     let contents = fs::read_to_string("aoc09.txt").unwrap();
     let values: Vec<Vec<i64>> = contents
         .lines()
-        .map(|l| {
-            l.trim()
-                .split_whitespace()
-                .map(|n| n.parse().unwrap())
-                .collect()
-        })
+        .map(|l| l.split_whitespace().map(|n| n.parse().unwrap()).collect())
         .collect();
 
     let result: i64 = values.iter().map(|v| extrapolate(v)).sum();
