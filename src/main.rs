@@ -18,8 +18,104 @@ fn main() {
     // day07();
     // day08();
     // day09();
-    day10();
+    // day10();
+    day11();
 }
+
+fn day11() {
+    let contents = fs::read_to_string("aoc11.txt").unwrap();
+    let grid: Vec<Vec<bool>> = contents
+        .lines()
+        .map(|l| l.chars().map(|c| c == '#').collect())
+        .collect();
+
+    let expanded_transposed_grid = transpose(&grid)
+        .into_iter()
+        .flat_map(|r| {
+            if r.iter().all(|b| !b) {
+                vec![r.clone(), r]
+            } else {
+                vec![r]
+            }
+        })
+        .collect_vec();
+
+    let expanded_grid = transpose(&expanded_transposed_grid)
+        .into_iter()
+        .flat_map(|r| {
+            if r.iter().all(|b| !b) {
+                vec![r.clone(), r]
+            } else {
+                vec![r]
+            }
+        })
+        .collect_vec();
+
+    let galaxy_coords: HashSet<_> = (0..expanded_grid.len())
+        .cartesian_product(0..expanded_grid[0].len())
+        .filter(|&(y, x)| expanded_grid[y][x])
+        .collect();
+
+    let result = galaxy_coords
+        .iter()
+        .cartesian_product(galaxy_coords.iter())
+        .map(|(&(x1, y1), &(x2, y2))| x1.abs_diff(x2) + y1.abs_diff(y2))
+        .sum::<usize>()
+        / 2;
+
+    println!("{result}");
+
+    let transposed_grid = transpose(&grid);
+
+    let expanded_ys = (0..grid.len())
+        .scan(0usize, |y, j| {
+            let old_y = *y;
+            if grid[j].iter().all(|b| !b) {
+                *y += 1000000;
+            } else {
+                *y += 1;
+            }
+
+            Some(old_y)
+        })
+        .collect_vec();
+
+    let expanded_xs = (0..transposed_grid.len())
+        .scan(0usize, |x, i| {
+            let old_x = *x;
+            if transposed_grid[i].iter().all(|b| !b) {
+                *x += 1000000;
+            } else {
+                *x += 1;
+            }
+
+            Some(old_x)
+        })
+        .collect_vec();
+
+    let galaxy_coords2: HashSet<_> = (0..grid.len())
+        .cartesian_product(0..grid[0].len())
+        .filter(|&(y, x)| grid[y][x])
+        .collect();
+
+    let result2 = galaxy_coords2
+        .iter()
+        .cartesian_product(galaxy_coords2.iter())
+        .map(|(&(y1, x1), &(y2, x2))| {
+            expanded_xs[x1].abs_diff(expanded_xs[x2]) + expanded_ys[y1].abs_diff(expanded_ys[y2])
+        })
+        .sum::<usize>()
+        / 2;
+
+    println!("{result2}");
+}
+
+fn transpose<T: Copy>(v: &Vec<Vec<T>>) -> Vec<Vec<T>> {
+    (0..v[0].len())
+        .map(|i| (0..v.len()).map(|j| v[j][i]).collect())
+        .collect()
+}
+
 fn day10() {
     let contents = fs::read_to_string("aoc10.txt").unwrap();
     let mut grid: Vec<Vec<char>> = contents.lines().map(|l| l.chars().collect()).collect();
