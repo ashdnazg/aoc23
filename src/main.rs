@@ -20,7 +20,66 @@ fn main() {
     // day09();
     // day10();
     // day11();
-    day12();
+    // day12();
+    day13();
+}
+
+fn day13() {
+    let contents = fs::read_to_string("aoc13.txt").unwrap();
+    let grids = contents
+        .split("\n\n")
+        .map(|grid_str| {
+            grid_str
+                .lines()
+                .map(|l| l.trim().chars().map(|c| c == '#').collect_vec())
+                .collect_vec()
+        })
+        .collect_vec();
+
+    let row_sum: usize = grids.iter().filter_map(find_reflection_row).sum::<usize>() * 100;
+    let col_sum: usize = grids
+        .iter()
+        .map(transpose)
+        .filter_map(|g| find_reflection_row(&g))
+        .sum();
+
+    println!("{}", row_sum + col_sum);
+
+    let row_sum2: usize = grids
+        .iter()
+        .filter_map(find_almost_reflection)
+        .sum::<usize>()
+        * 100;
+    let col_sum2: usize = grids
+        .iter()
+        .map(transpose)
+        .filter_map(|g| find_almost_reflection(&g))
+        .sum();
+
+    println!("{}", row_sum2 + col_sum2);
+}
+
+fn find_reflection_row(grid: &Vec<Vec<bool>>) -> Option<usize> {
+    (1..grid.len()).find(|i| {
+        let count = usize::min(*i, grid.len() - i);
+        (0..count).all(|j| grid[i - j - 1] == grid[i + j])
+    })
+}
+
+fn find_almost_reflection(grid: &Vec<Vec<bool>>) -> Option<usize> {
+    (1..grid.len()).find(|i| {
+        let count = usize::min(*i, grid.len() - i);
+        (0..count)
+            .map(|j| {
+                grid[i - j - 1]
+                    .iter()
+                    .zip(grid[i + j].iter())
+                    .filter(|(a, b)| a != b)
+                    .count()
+            })
+            .sum::<usize>()
+            == 1
+    })
 }
 
 fn day12() {
