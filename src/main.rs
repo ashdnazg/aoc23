@@ -19,7 +19,138 @@ fn main() {
     // day08();
     // day09();
     // day10();
-    day11();
+    // day11();
+    day12();
+}
+
+fn day12() {
+    let contents = fs::read_to_string("aoc12.txt").unwrap();
+    let records = contents
+        .lines()
+        .map(|l| {
+            let (conditions_str, groups_str) = l.trim().split_once(' ').unwrap();
+            let groups = groups_str.split(',').map(|n| n.parse().unwrap()).collect();
+            let (conditions, mask) = conditions_str.chars().rev().fold(
+                (0, 0),
+                |(conditions_acc, mask_acc), c| match c {
+                    '#' => (conditions_acc << 1 | 1, mask_acc << 1 | 1),
+                    '.' => (conditions_acc << 1, mask_acc << 1 | 1),
+                    '?' => (conditions_acc << 1, mask_acc << 1),
+                    _ => unreachable!(),
+                },
+            );
+            Record {
+                conditions,
+                mask,
+                groups,
+                length: conditions_str.len() as u8,
+            }
+        })
+        .collect_vec();
+
+    let result: usize = records.iter().map(Record::possible_arrangements).sum();
+    println!("{result}");
+
+    let records2 = contents
+        .lines()
+        .map(|l| {
+            let (conditions_str, groups_str) = l.trim().split_once(' ').unwrap();
+            let groups = std::iter::repeat(groups_str.split(','))
+                .take(5)
+                .flatten()
+                .map(|n| n.parse().unwrap())
+                .collect();
+            let (conditions, mask) = std::iter::repeat(conditions_str)
+                .take(5)
+                .join("?")
+                .chars()
+                .rev()
+                .fold((0, 0), |(conditions_acc, mask_acc), c| match c {
+                    '#' => (conditions_acc << 1 | 1, mask_acc << 1 | 1),
+                    '.' => (conditions_acc << 1, mask_acc << 1 | 1),
+                    '?' => (conditions_acc << 1, mask_acc << 1),
+                    _ => unreachable!(),
+                });
+            Record {
+                conditions,
+                mask,
+                groups,
+                length: (conditions_str.len() * 5 + 4) as u8,
+            }
+        })
+        .collect_vec();
+
+    let result2: usize = records2.iter().map(Record::possible_arrangements).sum();
+    println!("{result2}");
+}
+
+#[derive(Debug)]
+struct Record {
+    conditions: u128,
+    mask: u128,
+    groups: Vec<u8>,
+    length: u8,
+}
+
+impl Record {
+    fn possible_arrangements(&self) -> usize {
+        let mut cache: HashMap<(u8, usize), usize> = HashMap::new();
+        self.recursive_possible_arrangements_memoized(0, 0, &mut cache)
+    }
+
+    fn recursive_possible_arrangements_memoized(
+        &self,
+        min_shift: u8,
+        index: usize,
+        cache: &mut HashMap<(u8, usize), usize>,
+    ) -> usize {
+        if let Some(count) = cache.get(&(min_shift, index)) {
+            return *count;
+        }
+        let count = self.recursive_possible_arrangements(min_shift, index, cache);
+
+        cache.insert((min_shift, index), count);
+
+        count
+    }
+
+    fn recursive_possible_arrangements(
+        &self,
+        min_shift: u8,
+        index: usize,
+        cache: &mut HashMap<(u8, usize), usize>,
+    ) -> usize {
+        let remaining_bits = self.groups.iter().skip(index).sum::<u8>() as u32;
+        let conditions_bits = (self.conditions >> min_shift).count_ones();
+        if remaining_bits < conditions_bits {
+            return 0;
+        }
+
+        if index == self.groups.len() {
+            return 1;
+        }
+        let max_shift: u8 = self.length
+            - (self.groups.iter().skip(index).sum::<u8>() + self.groups.len() as u8
+                - index as u8
+                - 1);
+        let group_size = self.groups[index];
+        let group = (1u128 << group_size) - 1;
+        (min_shift..=max_shift)
+            .map(|shift| {
+                let shifted_group = group << shift;
+                let group_mask = ((1u128 << (group_size + shift - min_shift + 1)) - 1) << min_shift;
+                if shifted_group & self.mask == group_mask & self.conditions {
+                    self.recursive_possible_arrangements_memoized(
+                        shift + group_size + 1,
+                        index + 1,
+                        cache,
+                    )
+                } else {
+                    0
+                }
+            })
+            .sum()
+    }
 }
 
 fn day11() {
