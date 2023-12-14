@@ -21,7 +21,105 @@ fn main() {
     // day10();
     // day11();
     // day12();
-    day13();
+    // day13();
+    day14();
+}
+
+fn day14() {
+    let contents = fs::read_to_string("aoc14.txt").unwrap();
+    let grid = contents
+        .lines()
+        .map(|l| l.chars().collect_vec())
+        .collect_vec();
+    let result: usize = rotccw(&grid)
+        .iter()
+        .map(|row| {
+            let mut sum = 0;
+            let mut last_blocked = 0;
+            for (i, c) in row.iter().enumerate() {
+                match c {
+                    'O' => {
+                        last_blocked += 1;
+                        sum += row.len() - last_blocked + 1
+                    }
+                    '.' => {}
+                    '#' => last_blocked = i + 1,
+                    _ => unreachable!(),
+                }
+            }
+            sum
+        })
+        .sum();
+
+    println!("{result}");
+
+    let mut cache: HashMap<Vec<Vec<char>>, u64> = HashMap::new();
+
+    let mut steps = 0;
+    let mut current_grid = rotccw(&grid);
+    while !cache.contains_key(&current_grid) {
+        cache.insert(current_grid.clone(), steps);
+        for _ in 0..4 {
+            roll_blocks(&mut current_grid);
+            current_grid = rotcw(&current_grid);
+        }
+        steps += 1;
+    }
+
+    let period_start = cache[&current_grid];
+    let period_length = steps - period_start;
+
+    let phase = (1000000000 - period_start) % period_length;
+
+    let phase_grid = cache
+        .iter()
+        .find(|(_, &s)| s == phase + period_start)
+        .unwrap()
+        .0;
+
+    let load: usize = phase_grid
+        .iter()
+        .map(|l| {
+            l.iter()
+                .enumerate()
+                .filter(|(_, &c)| c == 'O')
+                .map(|(i, _)| l.len() - i)
+                .sum::<usize>()
+        })
+        .sum();
+
+    println!("{load}")
+}
+
+fn rotcw<T: Copy>(grid: &Vec<Vec<T>>) -> Vec<Vec<T>> {
+    (0..grid[0].len())
+        .map(|x| (0..grid.len()).rev().map(|y| grid[y][x]).collect_vec())
+        .collect_vec()
+}
+
+fn rotccw<T: Copy>(grid: &Vec<Vec<T>>) -> Vec<Vec<T>> {
+    (0..grid[0].len())
+        .rev()
+        .map(|x| (0..grid.len()).map(|y| grid[y][x]).collect_vec())
+        .collect_vec()
+}
+
+fn roll_blocks(grid: &mut [Vec<char>]) {
+    for row in grid.iter_mut() {
+        let mut first_free = 0;
+        for i in 0..row.len() {
+            match row[i] {
+                'O' => {
+                    row[i] = '.';
+                    row[first_free] = 'O';
+                    first_free += 1;
+                }
+                '.' => {}
+                '#' => first_free = i + 1,
+                _ => unreachable!(),
+            }
+        }
+    }
 }
 
 fn day13() {
