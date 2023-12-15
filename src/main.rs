@@ -1,5 +1,6 @@
 #![allow(dead_code)]
 use std::{
+    array,
     collections::{HashMap, HashSet},
     fs,
     iter::zip,
@@ -22,7 +23,66 @@ fn main() {
     // day11();
     // day12();
     // day13();
-    day14();
+    // day14();
+    day15();
+}
+
+fn day15() {
+    let contents = fs::read_to_string("aoc15.txt").unwrap();
+    let steps = contents.trim().split(',').collect_vec();
+
+    let result: u32 = steps
+        .iter()
+        .map(|step| {
+            step.chars()
+                .fold(0, |acc, c| ((acc + (c as u32)) * 17) % 256)
+        })
+        .sum();
+
+    println!("{result}");
+
+    let mut boxes: [Vec<(&str, usize)>; 256] = array::from_fn(|_| vec![]);
+
+    for step in steps.iter() {
+        if let Some((label, num_str)) = step.split_once('=') {
+            let new_entry = (label, num_str.parse().unwrap());
+            let box_index = label
+                .chars()
+                .fold(0, |acc, c| ((acc + (c as usize)) * 17) % 256);
+            if let Some(existing_entry) = boxes[box_index]
+                .iter_mut()
+                .find(|(existing_label, _)| *existing_label == label)
+            {
+                *existing_entry = new_entry;
+            } else {
+                boxes[box_index].push(new_entry)
+            }
+        } else {
+            let label = step.trim_end_matches('-');
+            let box_index = label
+                .chars()
+                .fold(0, |acc, c| ((acc + (c as usize)) * 17) % 256);
+            if let Some((position, _)) = boxes[box_index]
+                .iter()
+                .find_position(|(existing_label, _)| *existing_label == label)
+            {
+                boxes[box_index].remove(position);
+            }
+        }
+    }
+
+    let result2: usize = boxes
+        .iter()
+        .enumerate()
+        .map(|(box_num, lenses)| {
+            lenses
+                .iter()
+                .enumerate()
+                .map(|(slot, (_, focal_length))| (1 + box_num) * (slot + 1) * focal_length)
+                .sum::<usize>()
+        })
+        .sum();
+    println!("{result2}");
 }
 
 fn day14() {
