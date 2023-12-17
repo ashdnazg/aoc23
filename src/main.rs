@@ -4,6 +4,7 @@ use std::{
     collections::{HashMap, HashSet},
     fs,
     iter::zip,
+    mem::swap,
     ops::Range,
 };
 
@@ -24,7 +25,351 @@ fn main() {
     // day12();
     // day13();
     // day14();
-    day15();
+    // day15();
+    // day16();
+    day17();
+}
+
+fn day17() {
+    let contents = fs::read_to_string("aoc17.txt").unwrap();
+    let grid = contents
+        .lines()
+        .map(|l| l.chars().map(|c| c.to_digit(10).unwrap()).collect_vec())
+        .collect_vec();
+
+    let max_x = grid[0].len() as i64;
+    let max_y = grid.len() as i64;
+    {
+        let starting_state = State {
+            x: 0,
+            y: 0,
+            dx: 1,
+            dy: 0,
+            steps: 0,
+        };
+        let mut frontier: Vec<(State, u32)> = vec![(starting_state.clone(), 0)];
+        let mut next_frontier: Vec<(State, u32)> = vec![];
+        let mut best_visited: HashMap<State, u32> = HashMap::new();
+        best_visited.insert(starting_state.clone(), 0);
+        while !frontier.is_empty() {
+            frontier.drain(0..frontier.len()).for_each(|(state, cost)| {
+                expand(&state, max_x, max_y).for_each(|new_state| {
+                    let new_cost = cost + grid[new_state.y as usize][new_state.x as usize];
+                    if let Some(&best_cost) = best_visited.get(&new_state) {
+                        if best_cost <= new_cost {
+                            return;
+                        }
+                    }
+                    best_visited.insert(new_state.clone(), new_cost);
+                    next_frontier.push((new_state.clone(), new_cost));
+                })
+            });
+            swap(&mut frontier, &mut next_frontier);
+        }
+
+        let result = best_visited
+            .iter()
+            .filter(|(s, _)| s.x == max_x - 1 && s.y == max_y - 1)
+            .map(|(_, cost)| cost)
+            .min()
+            .unwrap();
+        println!("{result}");
+    }
+
+    {
+        let starting_state1 = State {
+            x: 0,
+            y: 0,
+            dx: 1,
+            dy: 0,
+            steps: 0,
+        };
+        let starting_state2 = State {
+            x: 0,
+            y: 0,
+            dx: 0,
+            dy: 1,
+            steps: 0,
+        };
+        let mut frontier: Vec<(State, u32)> =
+            vec![(starting_state1.clone(), 0), (starting_state2.clone(), 0)];
+        let mut next_frontier: Vec<(State, u32)> = vec![];
+        let mut best_visited: HashMap<State, u32> = HashMap::new();
+        best_visited.insert(starting_state1.clone(), 0);
+        best_visited.insert(starting_state2.clone(), 0);
+        while !frontier.is_empty() {
+            frontier.drain(0..frontier.len()).for_each(|(state, cost)| {
+                ultra_expand(&state, max_x, max_y).for_each(|new_state| {
+                    let new_cost = cost + grid[new_state.y as usize][new_state.x as usize];
+                    if let Some(&best_cost) = best_visited.get(&new_state) {
+                        if best_cost <= new_cost {
+                            return;
+                        }
+                    }
+                    best_visited.insert(new_state.clone(), new_cost);
+                    next_frontier.push((new_state.clone(), new_cost));
+                })
+            });
+            swap(&mut frontier, &mut next_frontier);
+        }
+
+        let result2 = best_visited
+            .iter()
+            .filter(|(s, _)| s.x == max_x - 1 && s.y == max_y - 1)
+            .map(|(_, cost)| cost)
+            .min()
+            .unwrap();
+        println!("{result2}");
+    }
+}
+
+fn expand(state: &State, max_x: i64, max_y: i64) -> impl Iterator<Item = State> {
+    [
+        State {
+            x: state.x + state.dx,
+            y: state.y + state.dy,
+            dx: state.dx,
+            dy: state.dy,
+            steps: state.steps + 1,
+        },
+        State {
+            x: state.x + state.dy,
+            y: state.y + state.dx,
+            dx: state.dy,
+            dy: state.dx,
+            steps: 1,
+        },
+        State {
+            x: state.x - state.dy,
+            y: state.y - state.dx,
+            dx: -state.dy,
+            dy: -state.dx,
+            steps: 1,
+        },
+    ]
+    .into_iter()
+    .filter(move |new_state| {
+        new_state.steps <= 3
+            && new_state.x >= 0
+            && new_state.y >= 0
+            && new_state.y < max_y
+            && new_state.x < max_x
+    })
+}
+
+fn ultra_expand(state: &State, max_x: i64, max_y: i64) -> impl Iterator<Item = State> {
+    let state_steps = state.steps;
+    let state_dx = state.dx;
+    [
+        State {
+            x: state.x + state.dx,
+            y: state.y + state.dy,
+            dx: state.dx,
+            dy: state.dy,
+            steps: state.steps + 1,
+        },
+        State {
+            x: state.x + state.dy,
+            y: state.y + state.dx,
+            dx: state.dy,
+            dy: state.dx,
+            steps: 1,
+        },
+        State {
+            x: state.x - state.dy,
+            y: state.y - state.dx,
+            dx: -state.dy,
+            dy: -state.dx,
+            steps: 1,
+        },
+    ]
+    .into_iter()
+    .filter(move |new_state| {
+        (state_dx == new_state.dx || state_steps >= 4)
+            && new_state.steps <= 10
+            && new_state.x >= 0
+            && new_state.y >= 0
+            && new_state.y < max_y
+            && new_state.x < max_x
+    })
+}
+
+#[derive(Clone, Debug, Eq, PartialEq, Hash)]
+struct State {
+    x: i64,
+    y: i64,
+    dx: i64,
+    dy: i64,
+    steps: u64,
+}
+
+fn day16() {
+    let contents = fs::read_to_string("aoc16.txt").unwrap();
+    let grid = contents
+        .lines()
+        .map(|l| l.chars().collect_vec())
+        .collect_vec();
+    {
+        let result = energize(
+            &Beam {
+                x: 0,
+                y: 0,
+                dx: 1,
+                dy: 0,
+            },
+            &grid,
+        );
+        println!("{result}");
+    }
+
+    {
+        let y_beams_iter = (0..grid.len()).flat_map(|y| {
+            vec![
+                Beam {
+                    x: 0,
+                    y: y as i64,
+                    dx: 1,
+                    dy: 0,
+                },
+                Beam {
+                    x: grid[0].len() as i64 - 1,
+                    y: y as i64,
+                    dx: -1,
+                    dy: 0,
+                },
+            ]
+        });
+        let x_beams_iter = (0..grid[0].len()).flat_map(|x| {
+            vec![
+                Beam {
+                    x: x as i64,
+                    y: 0,
+                    dx: 0,
+                    dy: 1,
+                },
+                Beam {
+                    x: x as i64,
+                    y: grid.len() as i64 - 1,
+                    dx: 0,
+                    dy: -1,
+                },
+            ]
+        });
+        let result2 = x_beams_iter
+            .chain(y_beams_iter)
+            .map(|beam| energize(&beam, &grid))
+            .max()
+            .unwrap();
+
+        println!("{result2}");
+    }
+}
+
+fn energize(starting_beam: &Beam, grid: &[Vec<char>]) -> usize {
+    let mut inactive_beams: HashSet<Beam> = HashSet::new();
+    let mut beams: Vec<Beam> = vec![starting_beam.clone()];
+    while !beams.is_empty() {
+        inactive_beams.extend(beams.iter().cloned());
+        beams = beams
+            .into_iter()
+            .flat_map(|beam| advance(&beam, grid))
+            .filter(|beam| {
+                beam.x >= 0
+                    && beam.y >= 0
+                    && beam.x < grid[0].len() as i64
+                    && beam.y < grid.len() as i64
+            })
+            .filter(|beam| !inactive_beams.contains(beam))
+            .collect_vec();
+    }
+
+    inactive_beams
+        .iter()
+        .map(|beam| (beam.x, beam.y))
+        .unique()
+        .count()
+}
+
+fn advance(beam: &Beam, grid: &[Vec<char>]) -> Vec<Beam> {
+    match grid[beam.y as usize][beam.x as usize] {
+        '.' => vec![Beam {
+            x: beam.x + beam.dx,
+            y: beam.y + beam.dy,
+            dx: beam.dx,
+            dy: beam.dy,
+        }],
+        '/' => vec![Beam {
+            x: beam.x - beam.dy,
+            y: beam.y - beam.dx,
+            dx: -beam.dy,
+            dy: -beam.dx,
+        }],
+        '\\' => vec![Beam {
+            x: beam.x + beam.dy,
+            y: beam.y + beam.dx,
+            dx: beam.dy,
+            dy: beam.dx,
+        }],
+        '|' => {
+            if beam.dx == 0 {
+                vec![Beam {
+                    x: beam.x + beam.dx,
+                    y: beam.y + beam.dy,
+                    dx: beam.dx,
+                    dy: beam.dy,
+                }]
+            } else {
+                vec![
+                    Beam {
+                        x: beam.x,
+                        y: beam.y + 1,
+                        dx: 0,
+                        dy: 1,
+                    },
+                    Beam {
+                        x: beam.x,
+                        y: beam.y - 1,
+                        dx: 0,
+                        dy: -1,
+                    },
+                ]
+            }
+        }
+        '-' => {
+            if beam.dy == 0 {
+                vec![Beam {
+                    x: beam.x + beam.dx,
+                    y: beam.y + beam.dy,
+                    dx: beam.dx,
+                    dy: beam.dy,
+                }]
+            } else {
+                vec![
+                    Beam {
+                        x: beam.x + 1,
+                        y: beam.y,
+                        dx: 1,
+                        dy: 0,
+                    },
+                    Beam {
+                        x: beam.x - 1,
+                        y: beam.y,
+                        dx: -1,
+                        dy: 0,
+                    },
+                ]
+            }
+        }
+        _ => unreachable!(),
+    }
+}
+
+#[derive(Clone, Debug, Eq, PartialEq, Hash)]
+struct Beam {
+    x: i64,
+    y: i64,
+    dx: i64,
+    dy: i64,
 }
 
 fn day15() {
