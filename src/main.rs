@@ -27,7 +27,229 @@ fn main() {
     // day14();
     // day15();
     // day16();
-    day17();
+    // day17();
+    day18();
+}
+
+fn day18() {
+    let contents = fs::read_to_string("aoc18.txt").unwrap();
+    let plan = contents
+        .lines()
+        .map(|l| l.split_once(' ').unwrap())
+        .map(|(dir_str, rest_str)| {
+            (
+                dir_str.chars().next().unwrap(),
+                rest_str.split_once(' ').unwrap(),
+            )
+        })
+        .map(|(dir, (count_str, color_str))| {
+            (
+                dir,
+                count_str.parse::<i64>().unwrap(),
+                color_str
+                    .trim_matches('(')
+                    .trim_matches(')')
+                    .trim_matches('#'),
+            )
+        })
+        .map(|(dir, count, color_str)| {
+            (
+                dir,
+                count,
+                ['R', 'D', 'L', 'U']
+                    [color_str.chars().nth(5).unwrap().to_digit(16).unwrap() as usize],
+                i64::from_str_radix(color_str.chars().take(5).join("").as_str(), 16).unwrap(),
+            )
+        })
+        .collect_vec();
+
+    {
+        let mut trench: HashSet<(i64, i64)> = HashSet::new();
+        let mut x: i64 = 0;
+        let mut y: i64 = 0;
+        for (dir, count, _, _) in plan.iter() {
+            let old_x = x;
+            let old_y = y;
+            match dir {
+                'U' => {
+                    y -= count;
+                }
+                'L' => {
+                    x -= count;
+                }
+                'D' => {
+                    y += count;
+                }
+                'R' => {
+                    x += count;
+                }
+                _ => unreachable!(),
+            }
+            for i in x.min(old_x)..=x.max(old_x) {
+                for j in y.min(old_y)..=y.max(old_y) {
+                    trench.insert((i, j));
+                }
+            }
+        }
+        let min_x = trench.iter().map(|(x, _)| *x).min().unwrap();
+        let max_x = trench.iter().map(|(x, _)| *x).max().unwrap();
+        let min_y = trench.iter().map(|(_, y)| *y).min().unwrap();
+        let max_y = trench.iter().map(|(_, y)| *y).max().unwrap();
+
+        let mut empty_spaces: HashSet<(i64, i64)> = HashSet::new();
+        let x_border_iter = (min_x..=max_x).flat_map(|x| [(x, min_y), (x, max_y)]);
+        let y_border_iter = (min_y..=max_y).flat_map(|y| [(min_x, y), (max_x, y)]);
+        let mut frontier: Vec<(i64, i64)> = x_border_iter
+            .chain(y_border_iter)
+            .filter(|&(x, y)| !trench.contains(&(x, y)))
+            .collect();
+
+        while !frontier.is_empty() {
+            empty_spaces.extend(frontier.iter().cloned());
+            frontier = frontier
+                .into_iter()
+                .flat_map(|(x, y)| [(x - 1, y), (x + 1, y), (x, y - 1), (x, y + 1)])
+                .filter(|&(x, y)| {
+                    (min_x..=max_x).contains(&x)
+                        && (min_y..=max_y).contains(&y)
+                        && !trench.contains(&(x, y))
+                        && !empty_spaces.contains(&(x, y))
+                })
+                .unique()
+                .collect_vec()
+        }
+
+        let result = (min_x..=max_x).count() * (min_y..=max_y).count() - empty_spaces.len();
+        println!("{result}");
+    }
+
+    {
+        let mut xs: HashSet<i64> = [0].into_iter().collect();
+        let mut ys: HashSet<i64> = [0].into_iter().collect();
+        {
+            let mut x = 0;
+            let mut y = 0;
+            for (_, _, dir, count) in plan.iter() {
+                match dir {
+                    'U' => {
+                        y -= count;
+                    }
+                    'L' => {
+                        x -= count;
+                    }
+                    'D' => {
+                        y += count;
+                    }
+                    'R' => {
+                        x += count;
+                    }
+                    _ => unreachable!(),
+                }
+                xs.insert(x);
+                ys.insert(y);
+            }
+        }
+
+        let x_ranges = xs
+            .iter()
+            .cloned()
+            .sorted()
+            .tuple_windows()
+            .flat_map(|(x1, x2)| [x1..=x1, (x1 + 1)..=(x2 - 1), x2..=x2])
+            .filter(|r| !r.is_empty())
+            .unique()
+            .collect_vec();
+        let y_ranges = ys
+            .iter()
+            .cloned()
+            .sorted()
+            .tuple_windows()
+            .flat_map(|(y1, y2)| [y1..=y1, (y1 + 1)..=(y2 - 1), y2..=y2])
+            .filter(|r| !r.is_empty())
+            .unique()
+            .collect_vec();
+
+        let big_x_to_x: HashMap<i64, i64> = x_ranges
+            .iter()
+            .enumerate()
+            .filter(|(_, r)| r.start() == r.end())
+            .map(|(i, r)| (*r.start(), i as i64))
+            .collect();
+        let big_y_to_y: HashMap<i64, i64> = y_ranges
+            .iter()
+            .enumerate()
+            .filter(|(_, r)| r.start() == r.end())
+            .map(|(i, r)| (*r.start(), i as i64))
+            .collect();
+
+        let mut big_x = 0;
+        let mut big_y = 0;
+        let mut trench: HashSet<(i64, i64)> = HashSet::new();
+        for (_, _, dir, count) in plan.iter() {
+            let old_big_x = big_x;
+            let old_big_y = big_y;
+            match dir {
+                'U' => {
+                    big_y -= count;
+                }
+                'L' => {
+                    big_x -= count;
+                }
+                'D' => {
+                    big_y += count;
+                }
+                'R' => {
+                    big_x += count;
+                }
+                _ => unreachable!(),
+            }
+            for i in big_x_to_x[&big_x].min(big_x_to_x[&old_big_x])
+                ..=big_x_to_x[&big_x].max(big_x_to_x[&old_big_x])
+            {
+                for j in big_y_to_y[&big_y].min(big_y_to_y[&old_big_y])
+                    ..=big_y_to_y[&big_y].max(big_y_to_y[&old_big_y])
+                {
+                    trench.insert((i, j));
+                }
+            }
+        }
+
+        let max_x = trench.iter().map(|(x, _)| *x).max().unwrap();
+        let max_y = trench.iter().map(|(_, y)| *y).max().unwrap();
+
+        let mut empty_spaces: HashSet<(i64, i64)> = HashSet::new();
+        let x_border_iter = (0..=max_x).flat_map(|x| [(x, 0), (x, max_y)]);
+        let y_border_iter = (0..=max_y).flat_map(|y| [(0, y), (max_x, y)]);
+        let mut frontier: Vec<(i64, i64)> = x_border_iter
+            .chain(y_border_iter)
+            .filter(|&(x, y)| !trench.contains(&(x, y)))
+            .collect();
+
+        while !frontier.is_empty() {
+            empty_spaces.extend(frontier.iter().cloned());
+            frontier = frontier
+                .into_iter()
+                .flat_map(|(x, y)| [(x - 1, y), (x + 1, y), (x, y - 1), (x, y + 1)])
+                .filter(|&(x, y)| {
+                    (0..=max_x).contains(&x)
+                        && (0..=max_y).contains(&y)
+                        && !trench.contains(&(x, y))
+                        && !empty_spaces.contains(&(x, y))
+                })
+                .unique()
+                .collect_vec()
+        }
+
+        let result2: usize = (0..=max_x)
+            .cartesian_product(0..=max_y)
+            .filter(|&(x, y)| !empty_spaces.contains(&(x, y)))
+            .map(|(x, y)| {
+                x_ranges[x as usize].clone().count() * y_ranges[y as usize].clone().count()
+            })
+            .sum();
+
+        println!("{result2}");
+    }
 }
 
 fn day17() {
