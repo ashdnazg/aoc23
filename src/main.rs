@@ -5,7 +5,7 @@ use std::{
     fs,
     iter::zip,
     mem::swap,
-    ops::Range,
+    ops::{Range, RangeInclusive},
 };
 
 use itertools::Itertools;
@@ -28,7 +28,165 @@ fn main() {
     // day15();
     // day16();
     // day17();
-    day18();
+    // day18();
+    day19();
+}
+
+fn day19() {
+    let contents = fs::read_to_string("aoc19.txt").unwrap();
+    let (workflows_str, parts_str) = contents.split_once("\n\n").unwrap();
+    let workflows: HashMap<&str, Vec<Rule>> = workflows_str
+        .lines()
+        .map(|l| l.trim().split_once('{').unwrap())
+        .map(|(name, rest_str)| {
+            (
+                name,
+                rest_str
+                    .trim_end_matches('}')
+                    .split(',')
+                    .map(Rule::parse)
+                    .collect_vec(),
+            )
+        })
+        .collect();
+
+    let parts: Vec<HashMap<char, u64>> = parts_str
+        .lines()
+        .map(|l| {
+            l.trim()
+                .trim_matches('}')
+                .trim_matches('{')
+                .split(',')
+                .map(|var_str| var_str.split_once('=').unwrap())
+                .map(|(var, value)| (var.chars().next().unwrap(), value.parse().unwrap()))
+                .collect()
+        })
+        .collect();
+
+    let result: u64 = parts
+        .iter()
+        .filter(|part| {
+            let mut target = "in";
+            loop {
+                match target {
+                    "A" => return true,
+                    "R" => return false,
+                    _ => {}
+                }
+                target = workflows[target]
+                    .iter()
+                    .find(|rule| rule.accepts(part))
+                    .unwrap()
+                    .target
+                    .as_str();
+            }
+        })
+        .flat_map(|part| part.values())
+        .sum();
+    println!("{result}");
+
+    {
+        let mut accepted_count: usize = 0;
+        let mut part_ranges: Vec<(String, PartRange)> = vec![(
+            "in".to_owned(),
+            [
+                ('x', 1..=4000),
+                ('m', 1..=4000),
+                ('a', 1..=4000),
+                ('s', 1..=4000),
+            ]
+            .into_iter()
+            .collect(),
+        )];
+        while let Some((target, part_range)) = part_ranges.pop() {
+            let mut remaining_range = part_range;
+            for rule in &workflows[target.as_str()] {
+                let (accepted, rejected) = rule.split(&remaining_range);
+                if accepted.values().all(|r| !r.is_empty()) {
+                    match rule.target.as_str() {
+                        "A" => {
+                            accepted_count += accepted
+                                .values()
+                                .map(|r| r.clone().count())
+                                .product::<usize>()
+                        }
+                        "R" => {}
+                        _ => part_ranges.push((rule.target.clone(), accepted)),
+                    }
+                }
+                if rejected.values().any(|r| r.is_empty()) {
+                    break;
+                }
+                remaining_range = rejected;
+            }
+        }
+
+        println!("{accepted_count}");
+    }
+}
+
+struct Rule {
+    threshold: u64,
+    on: char,
+    is_greater: bool,
+    target: String,
+}
+
+type PartRange = HashMap<char, RangeInclusive<u64>>;
+
+impl Rule {
+    fn accepts(&self, part: &HashMap<char, u64>) -> bool {
+        if self.is_greater {
+            part[&self.on] > self.threshold
+        } else {
+            part[&self.on] < self.threshold
+        }
+    }
+
+    fn split(&self, part_range: &PartRange) -> (PartRange, PartRange) {
+        let mut accepted_result = part_range.clone();
+        let mut rejected_result = part_range.clone();
+
+        if self.is_greater {
+            accepted_result
+                .entry(self.on)
+                .and_modify(|r| *r = *r.start().max(&(self.threshold + 1))..=*r.end());
+            rejected_result
+                .entry(self.on)
+                .and_modify(|r| *r = *r.start()..=*r.end().min(&self.threshold));
+        } else {
+            accepted_result
+                .entry(self.on)
+                .and_modify(|r| *r = *r.start()..=*r.end().min(&(self.threshold - 1)));
+            rejected_result
+                .entry(self.on)
+                .and_modify(|r| *r = *r.start().max(&self.threshold)..=*r.end());
+        }
+
+        (accepted_result, rejected_result)
+    }
+
+    fn parse(s: &str) -> Self {
+        let Some((condition_str, target)) = s.split_once(':') else {
+            return Rule {
+                threshold: u64::MAX,
+                on: 'x',
+                is_greater: false,
+                target: s.to_owned(),
+            };
+        };
+
+        let on = condition_str.chars().next().unwrap();
+        let is_greater = condition_str.chars().nth(1).unwrap() == '>';
+        let threshold = condition_str.chars().skip(2).join("").parse().unwrap();
+
+        Rule {
+            threshold,
+            on,
+            is_greater,
+            target: target.to_owned(),
+        }
+    }
 }
 
 fn day18() {
